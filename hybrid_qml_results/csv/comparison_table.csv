@@ -1,0 +1,8 @@
+Metrica,SVM Clasico (RBF),QSVM (Quantum Kernel),Diferencia
+Accuracy,1.0000,0.8800,-0.1200
+Precision,1.0000,0.9600,-0.0400
+Recall,1.0000,0.8276,-0.1724
+F1 Score,1.0000,0.8889,-0.1111
+ROC-AUC,1.0000,0.9869,-0.0131
+Train Time (s),0.006,0.003,-0.004
+Predict Time (s),0.001,0.001,-0.001

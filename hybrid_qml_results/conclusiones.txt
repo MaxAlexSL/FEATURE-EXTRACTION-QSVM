@@ -1,0 +1,15 @@
+CONCLUSIONES CIENTIFICAS
+==================================================
+
+1. El SVM clasico (100.00%) supera al QSVM (88.00%) en accuracy. Esto es esperable dado el regimen NISQ actual: pocos qubits (4) y muestras limitadas (100). El kernel RBF clasico sigue siendo altamente competitivo para datasets estructurados como MNIST.
+
+2. El autoencoder convolucional logra comprimir MNIST (784 pixeles) a 64 dimensiones latentes con loss final de 0.008266. Las reconstrucciones visuales confirman que la representacion latente preserva la estructura semantica de los digitos.
+
+3. El pipeline hibrido clasico-cuantico (autoencoder -> PCA -> QSVM) es completamente viable en Google Colab. La simulacion cuantica de 4 qubits es abordable, aunque el calculo de la matriz kernel (100x100) requiere 31.6s, escalando cuadraticamente con el numero de muestras.
+
+4. El analisis estadistico (t-test p=0.6666, Wilcoxon p=1.0000, Mann-Whitney p=1.0000) NO muestra diferencias estadisticamente significativas entre el rendimiento del SVM clasico y el QSVM.
+
+5. Limitaciones NISQ identificadas: (a) el calculo del kernel cuantico escalo cuadraticamente (O(n^2)) con el numero de muestras; (b) solo se usaron 4 qubits debido a restricciones de simulacion; (c) la reduccion PCA a 4 componentes puede perder informacion relevante (varianza explicada: 56.95%).
+
+6. Este experimento establece una base solida para tesis en Quantum Machine Learning aplicado a reconocimiento facial/biometrico. El pipeline es modular: el autoencoder puede reemplazarse por uno entrenado en faces, y el QSVM por circuitos variacionales mas complejos. La metodologia de comparacion sistematica (clasico vs cuantico) constituye un marco de evaluacion riguroso.
+
