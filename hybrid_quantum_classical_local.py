@@ -18,6 +18,7 @@ import random
 from pathlib import Path
 
 import numpy as np
+from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -56,6 +57,7 @@ print(f"Sistema: {platform.system()} {platform.release()}")
 print(f"PyTorch: {torch.__version__}")
 
 import pennylane as qml
+from pennylane.templates import AngleEmbedding
 print(f"PennyLane: {qml.__version__}")
 
 import sklearn
@@ -157,8 +159,8 @@ print(f"Test samples: {len(test_dataset)}")
 print(f"Image shape: {train_dataset[0][0].shape}")
 print(f"Num classes: {len(train_dataset.classes)}")
 
-# DataLoaders: num_workers=0 para CPU (evita errores de multiprocesamiento),
-# pin_memory=False porque no estamos transfiriendo a GPU
+# DataLoaders: num_workers=0 para compatibilidad con Windows (evita errores
+# de multiprocesamiento con pickling), pin_memory=False porque no hay GPU
 train_loader = DataLoader(
     train_dataset, batch_size=config.AE_BATCH_SIZE,
     shuffle=True, num_workers=0, pin_memory=False
@@ -265,8 +267,6 @@ print(f"  Latent dimension: {config.AE_LATENT_DIM}")
 # =============================================================================
 # ENTRENAMIENTO DEL AUTOENCODER
 # =============================================================================
-
-from tqdm import tqdm
 
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(ae.parameters(), lr=config.AE_LEARNING_RATE)
@@ -512,20 +512,23 @@ dev_kernel = qml.device("default.qubit", wires=n_qubits, shots=None)
 def quantum_kernel(x1, x2):
     """Kernel cuantico basado en fidelidad:
        K(x1, x2) = |<0|U(x1)^dag U(x2)|0>|^2
+       Codifica x1 con angle embedding, luego aplica el adjunto de x2
+       y mide probabilidad del estado |0...0>
     """
     AngleEmbedding(x1, wires=range(n_qubits))
     qml.adjoint(AngleEmbedding)(x2, wires=range(n_qubits))
     return qml.probs(wires=range(n_qubits))
 
 
-def kernel_matrix(X1, X2):
-    """Calcula la matriz de kernel cuantico completa"""
+def kernel_matrix(X1, X2, desc="Kernel"):
+    """Calcula la matriz de kernel cuantico completa (O(n1*n2) evaluaciones)
+       con barra de progreso tqdm para monitoreo"""
     n1, n2 = len(X1), len(X2)
     mat = np.zeros((n1, n2))
-    for i in range(n1):
+    for i in tqdm(range(n1), desc=desc, leave=False):
         for j in range(n2):
             probs = quantum_kernel(X1[i], X2[j])
-            mat[i, j] = probs[0]
+            mat[i, j] = probs[0]  # Fidelidad = probabilidad de |0...0>
     return mat
 
 
@@ -540,14 +543,14 @@ warnings.filterwarnings('ignore', category=UserWarning)
 
 print("Calculando matriz de kernel cuantico para entrenamiento...")
 t0 = time_module.time()
-K_train = kernel_matrix(X_q_train_emb, X_q_train_emb)
+K_train = kernel_matrix(X_q_train_emb, X_q_train_emb, desc="Kernel train")
 kernel_train_time = time_module.time() - t0
 print(f"  Matriz kernel train ({K_train.shape[0]}x{K_train.shape[1]}) "
       f"calculada en {kernel_train_time:.2f}s")
 
 print("Calculando matriz de kernel cuantico para prueba...")
 t0 = time_module.time()
-K_test = kernel_matrix(X_q_test_emb, X_q_train_emb)
+K_test = kernel_matrix(X_q_test_emb, X_q_train_emb, desc="Kernel test")
 kernel_test_time = time_module.time() - t0
 print(f"  Matriz kernel test ({K_test.shape[0]}x{K_test.shape[1]}) "
       f"calculada en {kernel_test_time:.2f}s")
@@ -698,6 +701,7 @@ from sklearn.model_selection import learning_curve
 
 
 def plot_learning_curve(estimator, X, y, title, ax, cv=5):
+    # n_jobs=1 para compatibilidad con Windows (evita errores de multiprocesamiento)
     train_sizes, train_scores, test_scores = learning_curve(
         estimator, X, y, cv=cv, n_jobs=1,
         train_sizes=np.linspace(0.3, 1.0, 5),
