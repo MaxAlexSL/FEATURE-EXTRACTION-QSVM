@@ -1,0 +1,835 @@
+% =============================================================================
+% ARTÍCULO CIENTÍFICO - Formato IEEE Conference
+% Hybrid Quantum-Classical Feature Extraction + QSVM
+% Basado en: "Hybrid Quantum-Classical Feature Extraction approach for
+%            Image Classification using Autoencoders and Quantum SVMs" (2024)
+% =============================================================================
+
+\documentclass[conference]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{textcomp}
+
+% ---- Código fuente ----
+\definecolor{codebg}{rgb}{0.95,0.95,0.95}
+\lstset{
+    backgroundcolor=\color{codebg},
+    frame=single,
+    basicstyle=\footnotesize\ttfamily,
+    breaklines=true,
+    inputencoding=utf8,
+    extendedchars=true,
+}
+
+% ---- Corrección para IEEEtran con spanish ----
+\ifCLASSOPTIONcompsoc
+  \usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+\else
+  \usepackage[caption=false,font=footnotesize]{subfig}
+\fi
+
+\begin{document}
+
+% =============================================================================
+% TÍTULO
+% =============================================================================
+\title{Clasificación de Imágenes mediante un Pipeline Híbrido\\[0.2cm]
+Clásico-Cuántico: Autoencoder Convolucional y\\[0.2cm]
+Máquina de Soporte Vectorial Cuántica}
+
+% =============================================================================
+% AUTORES
+% =============================================================================
+\author{\IEEEauthorblockN{Alex Max\'{i} SL\IEEEauthorrefmark{1},
+Brandon Joel GP\IEEEauthorrefmark{1},
+Fernando G. S\IEEEauthorrefmark{1}}
+\IEEEauthorblockA{\IEEEauthorrefmark{1}Escuela Profesional de Ingenier\'{i}a de Sistemas,\\
+Universidad Nacional de San Agust\'{i}n,\\
+Arequipa, Per\'{u}\\
+\{aluarez, bgarayp, fgutierrezs\}@unsa.edu.pe}
+}
+
+\maketitle
+
+% =============================================================================
+% RESUMEN (ABSTRACT)
+% =============================================================================
+\begin{abstract}
+El reconocimiento de imágenes es un problema fundamental en inteligencia artificial. 
+Los métodos clásicos basados en redes neuronales convolucionales y máquinas de soporte 
+vectorial (SVM) han demostrado alta efectividad, pero su escalabilidad encuentra 
+limitaciones en problemas de alta dimensionalidad. La computación cuántica ofrece un 
+paradigma alternativo con potencial para procesar información de manera más eficiente 
+en ciertos casos. Este trabajo presenta un pipeline híbrido clásico-cuántico que 
+combina un autoencoder convolucional para extracción de características latentes, 
+reducción PCA para adaptación a recursos cuánticos limitados (NISQ), y una máquina 
+de soporte vectorial cuántica (QSVM) para clasificación binaria de dígitos MNIST. 
+Los resultados muestran que el SVM clásico con kernel RBF alcanza un 100\% de 
+accuracy, mientras que el QSVM con 4 qubits obtiene un 88\%. El análisis estadístico 
+(t-test p=0.6666, Wilcoxon p=1.0000, Mann-Whitney p=1.0000) indica que la diferencia 
+no es estadísticamente significativa, demostrando que el enfoque cuántico es 
+competitivo incluso con recursos NISQ limitados. Se concluye que el pipeline híbrido 
+es viable y reproducible, estableciendo una base para futuras aplicaciones en 
+reconocimiento biométrico.
+\end{abstract}
+
+% =============================================================================
+% PALABRAS CLAVE
+% =============================================================================
+\begin{IEEEkeywords}
+Computación cuántica híbrida, autoencoder convolucional, QSVM, kernel cuántico, 
+clasificación de imágenes, MNIST, NISQ
+\end{IEEEkeywords}
+
+% =============================================================================
+% INTRODUCCIÓN
+% =============================================================================
+\section{Introducción}
+\label{sec:introduccion}
+
+La clasificación de imágenes es uno de los problemas más estudiados en el campo 
+de la inteligencia artificial y el aprendizaje automático. Desde el desarrollo de 
+redes neuronales convolucionales (CNN) hasta los modernos transformers visuales, 
+los enfoques clásicos han logrado avances notables en tareas como el reconocimiento 
+de objetos, la segmentación semántica y la verificación biométrica 
+\cite{krizhevsky2012imagenet, he2016deep}. Sin embargo, estos métodos enfrentan 
+desafíos relacionados con la alta dimensionalidad de los datos, el costo 
+computacional del entrenamiento y las limitaciones de escalabilidad.
+
+Paralelamente, la computación cuántica ha emergido como un paradigma prometedor 
+que explota principios de la mecánica cuántica --como la superposición y el 
+entrelazamiento-- para procesar información de manera fundamentalmente distinta 
+\cite{nielsen2010quantum}. En particular, el aprendizaje automático cuántico 
+(QML) busca aprovechar estos principios para resolver problemas de clasificación 
+y optimización de manera más eficiente que los enfoques clásicos 
+\cite{biamonte2017quantum, schuld2019machine}.
+
+No obstante, los dispositivos cuánticos actuales se encuentran en la era NISQ 
+(\textit{Noisy Intermediate-Scale Quantum}) \cite{preskill2018quantum}, 
+caracterizada por un número limitado de qubits (del orden de decenas a cientos) 
+y altas tasas de error. Esto impone restricciones significativas en la 
+implementación de algoritmos cuánticos a gran escala. Como respuesta, han surgido 
+enfoques híbridos clásico-cuánticos que delegan las tareas computacionalmente 
+intensivas a los sistemas clásicos y reservan las operaciones cuánticas para 
+subrutinas específicas donde ofrecen ventajas potenciales \cite{mcclean2016theory}.
+
+En esta línea, Slabbert y Petruccione (2024) propusieron un pipeline híbrido que 
+combina un autoencoder convolucional para reducción de dimensionalidad con una 
+máquina de soporte vectorial cuántica (QSVM) para clasificación de imágenes 
+\cite{slabbert2024hybrid}. Este enfoque es particularmente relevante porque:
+\begin{enumerate}
+    \item El autoencoder reduce las imágenes de alta resolución a un espacio 
+          latente compacto, facilitando el procesamiento cuántico.
+    \item El kernel cuántico del QSVM puede capturar relaciones no lineales que 
+          son difíciles de modelar con kernels clásicos.
+    \item El pipeline es modular, permitiendo reemplazar componentes individuales 
+          según la aplicación específica.
+\end{enumerate}
+
+El presente trabajo tiene como objetivo reproducir y analizar experimentalmente 
+el pipeline propuesto por Slabbert y Petruccione, evaluando su desempeño en la 
+clasificación de dígitos MNIST y comparándolo con un enfoque clásico puro. Las 
+contribuciones principales de este trabajo son:
+\begin{itemize}
+    \item Implementación reproducible del pipeline híbrido en CPU, eliminando la 
+          dependencia de hardware GPU especializado.
+    \item Evaluación sistemática del rendimiento mediante múltiples métricas y 
+          pruebas estadísticas.
+    \item Identificación de limitaciones y oportunidades de mejora en el contexto 
+          NISQ actual.
+    \item Establecimiento de una base metodológica para futuras investigaciones 
+          en clasificación cuántica híbrida aplicada a datos biométricos.
+\end{itemize}
+
+El resto del artículo se organiza de la siguiente manera: la Sección~\ref{sec:related} 
+presenta los trabajos relacionados; la Sección~\ref{sec:metodologia} describe la 
+metodología y arquitectura propuesta; la Sección~\ref{sec:implementacion} detalla 
+la implementación; la Sección~\ref{sec:experimentacion} presenta los experimentos 
+y resultados; la Sección~\ref{sec:discusion} discute los hallazgos; y la 
+Sección~\ref{sec:conclusiones} concluye el trabajo.
+
+% =============================================================================
+% TRABAJOS RELACIONADOS
+% =============================================================================
+\section{Trabajos Relacionados}
+\label{sec:related}
+
+\subsection{Aprendizaje Automático Cuántico}
+
+El aprendizaje automático cuántico (QML) ha experimentado un crecimiento 
+significativo en los últimos años. Biamonte et al. \cite{biamonte2017quantum} 
+presentaron una revisión exhaustiva de las intersecciones entre la computación 
+cuántica y el aprendizaje automático, identificando áreas como las máquinas de 
+soporte vectorial cuánticas, las redes neuronales cuánticas y los kernels 
+cuánticos como las más prometedoras. Schuld y Petruccione \cite{schuld2019machine} 
+profundizaron en los fundamentos teóricos del QML, estableciendo las bases para 
+el desarrollo de algoritmos híbridos.
+
+\subsection{Kernels Cuánticos para Clasificación}
+
+Havlíček et al. \cite{havlicek2019supervised} demostraron que los kernels 
+cuánticos pueden superar a los kernels clásicos en tareas donde los datos 
+presentan estructuras que son difíciles de capturar clásicamente. Los autores 
+introdujeron el concepto de ``ventaja cuántica'' en el aprendizaje automático 
+supervisado, mostrando que ciertos conjuntos de datos sintéticos solo pueden 
+ser clasificados eficazmente mediante kernels cuánticos. Schuld y Killoran 
+\cite{schuld2019quantum} exploraron la conexión entre los kernels cuánticos y 
+los mapas de características, proporcionando un marco teórico unificado.
+
+\subsection{Autoencoders y Extracción de Características}
+
+Los autoencoders convolucionales han sido ampliamente utilizados para la 
+extracción no supervisada de características en datos de imagen 
+\cite{masci2011stacked}. Kingma y Welling \cite{kingma2013auto} introdujeron 
+los autoencoders variacionales (VAE), que añaden una formulación probabilística 
+al espacio latente. En el contexto híbrido, el autoencoder actúa como un 
+``puente'' entre los dominios clásico y cuántico, transformando datos de alta 
+dimensionalidad en representaciones compactas adecuadas para el procesamiento 
+cuántico \cite{slabbert2024hybrid}.
+
+\subsection{Enfoques Híbridos Clásico-Cuánticos}
+
+Mitarai et al. \cite{mitarai2018quantum} propusieron el concepto de circuitos 
+cuánticos parametrizados para aprendizaje automático, sentando las bases para 
+los enfoques variacionales híbridos. McClean et al. \cite{mcclean2016theory} 
+establecieron el marco teórico para los algoritmos variacionales híbridos, que 
+combinan optimización clásica con evaluación cuántica. Más recientemente, 
+Slabbert y Petruccione \cite{slabbert2024hybrid} integraron estas ideas en un 
+pipeline completo que combina autoencoders convolucionales con QSVM, demostrando 
+su viabilidad en la clasificación de dígitos manuscritos. Este trabajo se basa 
+directamente en esa propuesta, extendiéndola mediante un análisis estadístico 
+exhaustivo y una implementación optimizada para CPU.
+
+% =============================================================================
+% METODOLOGÍA
+% =============================================================================
+\section{Metodología}
+\label{sec:metodologia}
+
+\subsection{Diseño del Estudio}
+
+El estudio sigue un diseño experimental comparativo donde se evalúa el 
+rendimiento de un pipeline híbrido clásico-cuántico frente a un enfoque clásico 
+puro en la tarea de clasificación binaria de dígitos MNIST (clases 0 y 1). 
+La Figura~\ref{fig:arquitectura} ilustra la arquitectura general del sistema.
+
+\subsection{Arquitectura del Pipeline}
+
+El pipeline propuesto consta de cuatro etapas principales:
+
+\begin{enumerate}
+    \item \textbf{Autoencoder Convolucional}: Reduce imágenes de $28 \times 28$ 
+          píxeles (784 dimensiones) a un espacio latente de 64 dimensiones.
+    \item \textbf{Reducción PCA}: Transforma las 64 características latentes a 
+          4 componentes principales para adecuarse al número de qubits disponibles.
+    \item \textbf{Kernel Cuántico}: Calcula la matriz de similitud entre muestras 
+          mediante un circuito cuántico de 4 qubits.
+    \item \textbf{Clasificador QSVM}: SVM con kernel precomputado a partir de la 
+          matriz cuántica. Se compara contra un SVM clásico con kernel RBF.
+\end{enumerate}
+
+\subsection{Autoencoder Convolucional}
+
+El autoencoder está compuesto por un \textbf{encoder} y un \textbf{decoder} 
+convolucionales. El encoder reduce progresivamente la resolución espacial 
+mientras aumenta la profundidad de canales mediante 4 capas convolucionales 
+con stride 2 ($1 \to 32 \to 64 \to 128 \to 256$), finalizando en una capa 
+fully-connected que proyecta a 64 dimensiones latentes. El decoder realiza 
+la operación inversa mediante 4 capas de convolución transpuesta, restaurando 
+la imagen original con activación $\tanh$.
+
+La función de pérdida utilizada es el error cuadrático medio (MSE):
+
+\begin{equation}
+    \mathcal{L}(x, \hat{x}) = \frac{1}{N} \sum_{i=1}^{N} (x_i - \hat{x}_i)^2
+    \label{eq:mse}
+\end{equation}
+
+\subsection{Kernel Cuántico}
+
+El kernel cuántico se define mediante un circuito parametrizado que calcula la 
+fidelidad entre dos estados cuánticos:
+
+\begin{equation}
+    K(x_i, x_j) = |\langle 0| U^\dagger(x_i) U(x_j) |0\rangle|^2
+    \label{eq:kernel}
+\end{equation}
+
+donde $U(x)$ es un circuito de codificación basado en \textit{Angle Embedding} 
+que codifica las 4 características normalizadas $[0, 2\pi]$ en los ángulos de 
+rotación de 4 qubits. La simulación se realiza en el dispositivo 
+\texttt{default.qubit} de PennyLane.
+
+\subsection{Clasificadores}
+
+\begin{itemize}
+    \item \textbf{SVM Clásico (Baseline)}: \texttt{SVC(kernel='rbf', C=1.0)} 
+          de scikit-learn, entrenado directamente sobre las características PCA.
+    \item \textbf{QSVM}: \texttt{SVC(kernel='precomputed')} entrenado sobre la 
+          matriz de kernel cuántico calculada offline.
+\end{itemize}
+
+\subsection{Métricas de Evaluación}
+
+Se emplean las siguientes métricas para evaluar el desempeño:
+
+\begin{itemize}
+    \item \textbf{Accuracy}: Proporción de predicciones correctas.
+    \item \textbf{Precision}: $TP / (TP + FP)$
+    \item \textbf{Recall}: $TP / (TP + FN)$
+    \item \textbf{F1 Score}: Media armónica de precisión y recall.
+    \item \textbf{ROC-AUC}: Área bajo la curva ROC.
+    \item \textbf{Tiempo de ejecución}: Tiempo de entrenamiento y predicción.
+\end{itemize}
+
+\subsection{Pruebas Estadísticas}
+
+Para determinar si las diferencias entre clasificadores son significativas, se 
+aplican:
+\begin{itemize}
+    \item \textbf{t-test} de muestras independientes.
+    \item \textbf{Wilcoxon Signed-Rank} (pareado).
+    \item \textbf{Mann-Whitney U}.
+    \item \textbf{Validación cruzada} 5-fold.
+    \item \textbf{Intervalos de confianza} al 95\%.
+\end{itemize}
+
+% =============================================================================
+% IMPLEMENTACIÓN
+% =============================================================================
+\section{Implementación}
+\label{sec:implementacion}
+
+\subsection{Tecnologías Utilizadas}
+
+La implementación se realizó utilizando las siguientes herramientas:
+
+\begin{table}[H]
+    \centering
+    \caption{Tecnologías y librerías utilizadas.}
+    \label{tab:software}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Tecnología} & \textbf{Propósito} \\
+        \midrule
+        Python 3.10+ & Lenguaje de programación \\
+        PyTorch 2.0+ & Autoencoder convolucional \\
+        PennyLane 0.30+ & Simulación del kernel cuántico \\
+        scikit-learn 1.3+ & SVM, PCA, métricas, validación \\
+        NumPy / SciPy & Procesamiento numérico y estadístico \\
+        Matplotlib / Seaborn & Visualización de resultados \\
+        tqdm & Barras de progreso \\
+        joblib & Serialización de modelos \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Organización del Código}
+
+El proyecto se organiza en los siguientes archivos:
+
+\begin{itemize}
+    \item \texttt{hybrid\_quantum\_classical\_qsvm\_final.ipynb}: Notebook 
+          principal con el experimento completo (30 celdas).
+    \item \texttt{hybrid\_quantum\_classical\_local.py}: Script Python 
+          independiente para ejecución directa en CPU.
+    \item \texttt{requirements\_local.txt}: Dependencias para instalación.
+    \item \texttt{hybrid\_qml\_results/}: Directorio con resultados (modelos, 
+          métricas, gráficas, CSV).
+\end{itemize}
+
+\subsection{Parámetros de Configuración}
+
+La Tabla~\ref{tab:config} resume los parámetros principales del experimento.
+
+\begin{table}[H]
+    \centering
+    \caption{Configuración del experimento.}
+    \label{tab:config}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Parámetro} & \textbf{Valor} \\
+        \midrule
+        Dataset & MNIST \\
+        Clases binarias & 0 y 1 \\
+        Dimensiones latentes & 64 \\
+        Épocas autoencoder & 20 \\
+        Batch size & 128 \\
+        Learning rate & $1 \times 10^{-3}$ \\
+        Componentes PCA & 4 \\
+        Número de qubits & 4 \\
+        Muestras train QSVM & 100 \\
+        Muestras test QSVM & 50 \\
+        Seed & 42 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% =============================================================================
+% REPOSITORIO GITHUB
+% =============================================================================
+\section{Repositorio GitHub}
+\label{sec:repositorio}
+
+El código fuente completo del proyecto está disponible en un repositorio 
+público de GitHub:
+
+\begin{center}
+    \url{https://github.com/MaxAlexSL/FEATURE-EXTRACTION-QSVM}
+\end{center}
+
+El repositorio incluye:
+\begin{itemize}
+    \item Notebook Jupyter completo (\texttt{.ipynb}) con 30 celdas ejecutables.
+    \item Script Python independiente (\texttt{.py}) para ejecución en terminal.
+    \item Archivo de dependencias (\texttt{requirements\_local.txt}).
+    \item README con instrucciones detalladas de instalación y ejecución.
+    \item Resultados precalculados (modelos entrenados, métricas, gráficas).
+    \item Historial de commits que evidencia el desarrollo incremental.
+\end{itemize}
+
+Para reproducir el experimento:
+
+\begin{lstlisting}[language=bash]
+git clone https://github.com/MaxAlexSL/FEATURE-EXTRACTION-QSVM.git
+cd "FEATURE EXTRACTION + QSVM"
+pip install -r requirements_local.txt
+python hybrid_quantum_classical_local.py
+\end{lstlisting}
+
+% =============================================================================
+% EXPERIMENTACIÓN Y RESULTADOS
+% =============================================================================
+\section{Experimentación y Resultados}
+\label{sec:experimentacion}
+
+\subsection{Configuración Experimental}
+
+Los experimentos se ejecutaron en un sistema con CPU AMD Ryzen 5 y 16 GB de 
+RAM, utilizando el simulador cuántico \texttt{default.qubit} de PennyLane. 
+No se requirió GPU para ninguno de los experimentos.
+
+\subsection{Resultados del Autoencoder}
+
+El autoencoder se entrenó durante 20 épocas con optimizador Adam. La 
+Figura~\ref{fig:ae-curve} muestra la curva de aprendizaje, donde la pérdida 
+MSE desciende de 0.1334 (época 1) a 0.0083 (época 20) en entrenamiento, y de 
+0.0426 a 0.0085 en validación.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{hybrid_qml_results/plots/autoencoder_learning_curve.png}
+    \caption{Curva de aprendizaje del autoencoder convolucional.}
+    \label{fig:ae-curve}
+\end{figure}
+
+La Figura~\ref{fig:reconstrucciones} presenta las reconstrucciones visuales, 
+donde se observa que el autoencoder preserva la estructura semántica de los 
+dígitos a pesar de la compresión 12$\times$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.48\textwidth]{hybrid_qml_results/plots/autoencoder_reconstructions.png}
+    \caption{Reconstrucciones del autoencoder: originales (arriba), 
+             reconstruidas (medio), error (abajo).}
+    \label{fig:reconstrucciones}
+\end{figure}
+
+\subsection{Resultados de Clasificación}
+
+\subsubsection{SVM Clásico (Baseline)}
+
+El SVM clásico con kernel RBF alcanzó un accuracy perfecto del 100\% en el 
+conjunto de prueba binario (21 dígitos 0 y 29 dígitos 1). La Tabla~\ref{tab:svm} 
+detalla las métricas.
+
+\begin{table}[H]
+    \centering
+    \caption{Resultados del SVM clásico.}
+    \label{tab:svm}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Clase} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Soporte} \\
+        \midrule
+        Clase 0 & 1.00 & 1.00 & 1.00 & 21 \\
+        Clase 1 & 1.00 & 1.00 & 1.00 & 29 \\
+        \midrule
+        \textbf{Accuracy} & \multicolumn{4}{c}{\textbf{1.0000}} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection{QSVM (Quantum Kernel)}
+
+El QSVM alcanzó un accuracy del 88\% en el mismo conjunto de prueba. El cálculo 
+de la matriz de kernel cuántico (100$\times$100) tomó 31.62 segundos, evidenciando 
+el escalamiento cuadrático $\mathcal{O}(n^2)$.
+
+\begin{table}[H]
+    \centering
+    \caption{Resultados del QSVM.}
+    \label{tab:qsvm}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Clase} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Soporte} \\
+        \midrule
+        Clase 0 & 0.80 & 0.95 & 0.87 & 21 \\
+        Clase 1 & 0.96 & 0.83 & 0.89 & 29 \\
+        \midrule
+        \textbf{Accuracy} & \multicolumn{4}{c}{\textbf{0.8800}} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Comparación Directa}
+
+La Tabla~\ref{tab:comparacion} presenta la comparación entre ambos clasificadores.
+
+\begin{table}[H]
+    \centering
+    \caption{Comparación de métricas: SVM Clásico vs QSVM.}
+    \label{tab:comparacion}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Métrica} & \textbf{SVM Clásico} & \textbf{QSVM} & \textbf{Diferencia} \\
+        \midrule
+        Accuracy  & 1.0000 & 0.8800 & $-$0.1200 \\
+        Precision & 1.0000 & 0.9600 & $-$0.0400 \\
+        Recall    & 1.0000 & 0.8276 & $-$0.1724 \\
+        F1 Score  & 1.0000 & 0.8889 & $-$0.1111 \\
+        ROC-AUC   & 1.0000 & 0.9869 & $-$0.0131 \\
+        \midrule
+        Tiempo entrenamiento & 0.006 s & 0.003 s & $-$0.004 s \\
+        Tiempo predicción    & 0.001 s & 0.001 s & $-$0.001 s \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+La Figura~\ref{fig:confusion} muestra las matrices de confusión, y la 
+Figura~\ref{fig:roc} las curvas ROC comparativas.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.48\textwidth]{hybrid_qml_results/plots/confusion_matrices.png}
+    \caption{Matrices de confusión: SVM (izquierda) y QSVM (derecha).}
+    \label{fig:confusion}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{hybrid_qml_results/plots/roc_curves.png}
+    \caption{Curvas ROC comparativas. AUC: SVM = 1.000, QSVM = 0.987.}
+    \label{fig:roc}
+\end{figure}
+
+\subsection{Visualización de Embeddings}
+
+Las Figuras~\ref{fig:tsne} y~\ref{fig:pca} presentan las visualizaciones de 
+los embeddings latentes mediante t-SNE y PCA respectivamente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{hybrid_qml_results/plots/tsne_embeddings.png}
+    \caption{Visualización t-SNE de características latentes.}
+    \label{fig:tsne}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{hybrid_qml_results/plots/pca_embeddings.png}
+    \caption{Proyección PCA de características latentes.}
+    \label{fig:pca}
+\end{figure}
+
+\subsection{Análisis Estadístico}
+
+Se realizó validación cruzada 5-fold y pruebas estadísticas para determinar la 
+significancia de las diferencias observadas.
+
+\begin{table}[H]
+    \centering
+    \caption{Pruebas estadísticas: SVM Clásico vs QSVM.}
+    \label{tab:stats}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Prueba} & \textbf{Estadístico} & \textbf{Valor p} & \textbf{Significativo} \\
+        \midrule
+        t-test independiente & $-0.4472$ & 0.6666 & No \\
+        Wilcoxon Signed-Rank & 0.0000  & 1.0000 & No \\
+        Mann-Whitney U       & 12.0000 & 1.0000 & No \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Todos los valores p obtenidos son superiores a 0.05, por lo que \textbf{no se 
+rechaza la hipótesis nula}: no existe evidencia estadísticamente significativa 
+de que el rendimiento del QSVM sea diferente al del SVM clásico.
+
+\subsection{Uso de Recursos}
+
+\begin{table}[H]
+    \centering
+    \caption{Recursos computacionales.}
+    \label{tab:recursos}
+    \begin{tabular}{lr}
+        \toprule
+        \textbf{Parámetro} & \textbf{Valor} \\
+        \midrule
+        Parámetros del autoencoder & 1,136,961 \\
+        Vectores de soporte (SVM) & 24 \\
+        Tamaño matriz kernel cuántico & 78.12 KB \\
+        Tiempo kernel cuántico & 31.62 s \\
+        Tiempo entrenamiento SVM & 0.006 s \\
+        Tiempo entrenamiento QSVM & 0.003 s \\
+        Varianza explicada PCA (4 comp.) & 56.95\% \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% =============================================================================
+% DISCUSIÓN
+% =============================================================================
+\section{Discusión de Resultados}
+\label{sec:discusion}
+
+\subsection{Interpretación de Resultados}
+
+Los resultados obtenidos revelan aspectos importantes sobre el estado actual 
+de la clasificación híbrida clásico-cuántica:
+
+\begin{enumerate}
+    \item \textbf{El SVM clásico supera al QSVM en accuracy absoluta} (100\% 
+          vs 88\%). Este resultado era esperable dado el régimen NISQ actual: 
+          solo 4 qubits y 100 muestras de entrenamiento. El kernel RBF clásico, 
+          con décadas de desarrollo y optimización, sigue siendo altamente 
+          competitivo para datasets estructurados como MNIST.
+    
+    \item \textbf{La diferencia no es estadísticamente significativa}. A pesar 
+          de la brecha del 12\% en accuracy, las pruebas estadísticas (t-test 
+          p=0.6666, Wilcoxon p=1.0000) indican que esta diferencia podría 
+          deberse al azar, especialmente considerando el tamaño de muestra 
+          limitado (50 pruebas). Este hallazgo es alentador para el QML, pues 
+          sugiere que con más qubits y muestras el QSVM podría igualar o superar 
+          al enfoque clásico.
+    
+    \item \textbf{El ROC-AUC del QSVM (0.9869) es cercano al ideal (1.0)}. 
+          Esto indica que, aunque el QSVM comete errores de clasificación, su 
+          capacidad de discriminación entre clases es casi tan buena como la 
+          del SVM clásico.
+    
+    \item \textbf{El cuello de botella es el cálculo del kernel cuántico}. Con 
+          31.62 segundos para una matriz 100$\times$100, el escalamiento 
+          $\mathcal{O}(n^2)$ limita severamente la aplicabilidad a datasets 
+          grandes. Esta es una limitación fundamental de los enfoques basados 
+          en kernels cuánticos en la era NISQ.
+\end{enumerate}
+
+\subsection{Limitaciones del Estudio}
+
+Las principales limitaciones identificadas son:
+
+\begin{itemize}
+    \item \textbf{Número de qubits}: Con solo 4 qubits, el kernel cuántico 
+          tiene una capacidad expresiva limitada. Se requieren al menos 8-12 
+          qubits para observar ventajas potenciales significativas.
+    \item \textbf{Tamaño de muestra}: 100 muestras de entrenamiento y 50 de 
+          prueba son insuficientes para generalizar conclusiones robustas sobre 
+          el rendimiento de los clasificadores.
+    \item \textbf{Pérdida de información por PCA}: La reducción a 4 componentes 
+          explica solo el 56.95\% de la varianza, lo que implica que casi la 
+          mitad de la información se descarta antes de la clasificación cuántica.
+    \item \textbf{Simulación cuántica}: El uso de un simulador clásico 
+          (\texttt{default.qubit}) no captura el ruido y las imperfecciones de 
+          un computador cuántico real.
+    \item \textbf{Dataset simple}: MNIST es un dataset relativamente sencillo. 
+          Se necesitan experimentos con datasets más complejos (CIFAR, 
+          reconocimiento facial) para evaluar la verdadera utilidad del enfoque.
+\end{itemize}
+
+\subsection{Comparación con Trabajos Relacionados}
+
+Nuestros resultados son consistentes con los reportados por Slabbert y 
+Petruccione \cite{slabbert2024hybrid}, quienes también observaron que el SVM 
+clásico supera al QSVM en datasets estructurados, pero señalan que el kernel 
+cuántico ofrece ventajas potenciales en espacios de características más 
+complejos. A diferencia de su trabajo, nosotros incluimos un análisis 
+estadístico exhaustivo que cuantifica la significancia de las diferencias 
+observadas.
+
+En comparación con Havlíček et al. \cite{havlicek2019supervised}, nuestros 
+resultados confirman que los kernels cuánticos son competitivos pero aún no 
+superan sistemáticamente a los kernels clásicos en datasets reales 
+(no sintéticos).
+
+% =============================================================================
+% CONCLUSIONES
+% =============================================================================
+\section{Conclusiones}
+\label{sec:conclusiones}
+
+En este trabajo se implementó y evaluó un pipeline híbrido clásico-cuántico 
+para clasificación de imágenes, combinando un autoencoder convolucional con 
+una máquina de soporte vectorial cuántica (QSVM). Las principales conclusiones 
+son:
+
+\begin{enumerate}
+    \item \textbf{El pipeline híbrido es viable y reproducible}. La 
+          implementación completa está disponible en un repositorio público y 
+          puede ejecutarse en CPU sin necesidad de hardware GPU especializado.
+    
+    \item \textbf{El autoencoder convolucional comprime eficientemente} las 
+          imágenes MNIST (784 $\to$ 64 dimensiones) con una pérdida MSE de 
+          0.0083, preservando la estructura semántica de los dígitos.
+    
+    \item \textbf{El QSVM (88\% accuracy) se acerca al SVM clásico (100\%)} 
+          y la diferencia no es estadísticamente significativa (p $>$ 0.05 en 
+          todas las pruebas). Esto sugiere que el kernel cuántico captura 
+          información relevante incluso con solo 4 qubits.
+    
+    \item \textbf{La principal limitación NISQ es el escalamiento cuadrático} 
+          del kernel cuántico ($\mathcal{O}(n^2)$), que restringe su 
+          aplicabilidad a conjuntos de datos pequeños.
+    
+    \item \textbf{El pipeline es modular y extensible}. El autoencoder puede 
+          reemplazarse por uno entrenado en rostros para aplicaciones 
+          biométricas, y el QSVM puede sustituirse por circuitos variacionales 
+          más complejos.
+\end{enumerate}
+
+\subsection{Trabajo Futuro}
+
+Las siguientes líneas de trabajo futuro se derivan de esta investigación:
+
+\begin{itemize}
+    \item \textbf{Aumentar el número de qubits} (8-12) para mejorar la 
+          capacidad expresiva del kernel cuántico.
+    \item \textbf{Evaluar el pipeline en datasets biométricos} (reconocimiento 
+          facial, huellas dactilares) para validar su utilidad práctica.
+    \item \textbf{Implementar circuitos variacionales entrenables} como 
+          alternativa al kernel cuántico fijo.
+    \item \textbf{Explorar técnicas de aproximación del kernel} para reducir 
+          el costo computacional $\mathcal{O}(n^2)$.
+    \item \textbf{Probar el pipeline en hardware cuántico real} (IBM Quantum, 
+          Rigetti) para evaluar el impacto del ruido.
+    \item \textbf{Desarrollar una versión del pipeline optimizada para GPU}, 
+          aprovechando CUDA cuando esté disponible.
+\end{itemize}
+
+% =============================================================================
+% REFERENCIAS
+% =============================================================================
+\begin{thebibliography}{00}
+
+\bibitem{slabbert2024hybrid}
+M. J. Slabbert and F. Petruccione, ``Hybrid Quantum-Classical Feature 
+Extraction approach for Image Classification using Autoencoders and Quantum 
+SVMs,'' \textit{AVS Quantum Science}, vol. 6, no. 4, 2024.
+
+\bibitem{krizhevsky2012imagenet}
+A. Krizhevsky, I. Sutskever, and G. E. Hinton, ``ImageNet Classification 
+with Deep Convolutional Neural Networks,'' in \textit{Proc. Advances in 
+Neural Information Processing Systems (NIPS)}, 2012, pp. 1097--1105.
+
+\bibitem{he2016deep}
+K. He, X. Zhang, S. Ren, and J. Sun, ``Deep Residual Learning for Image 
+Recognition,'' in \textit{Proc. IEEE Conf. Computer Vision and Pattern 
+Recognition (CVPR)}, 2016, pp. 770--778.
+
+\bibitem{nielsen2010quantum}
+M. A. Nielsen and I. L. Chuang, \textit{Quantum Computation and Quantum 
+Information}, 10th ed. Cambridge, U.K.: Cambridge Univ. Press, 2010.
+
+\bibitem{biamonte2017quantum}
+J. Biamonte, P. Wittek, N. Pancotti, P. Rebentrost, N. Wiebe, and 
+S. Lloyd, ``Quantum Machine Learning,'' \textit{Nature}, vol. 549, 
+pp. 195--202, 2017.
+
+\bibitem{schuld2019machine}
+M. Schuld and F. Petruccione, \textit{Machine Learning with Quantum 
+Computers}. Cham, Switzerland: Springer, 2021.
+
+\bibitem{preskill2018quantum}
+J. Preskill, ``Quantum Computing in the NISQ era and beyond,'' 
+\textit{Quantum}, vol. 2, p. 79, 2018.
+
+\bibitem{mcclean2016theory}
+J. R. McClean, J. Romero, R. Babbush, and A. Aspuru-Guzik, ``The theory 
+of variational hybrid quantum-classical algorithms,'' \textit{New Journal 
+of Physics}, vol. 18, no. 2, p. 023023, 2016.
+
+\bibitem{havlicek2019supervised}
+V. Havlíček, A. D. Córcoles, K. Temme, A. W. Harrow, A. Kandala, 
+J. M. Chow, and J. M. Gambetta, ``Supervised learning with quantum-enhanced 
+feature spaces,'' \textit{Nature}, vol. 567, pp. 209--212, 2019.
+
+\bibitem{schuld2019quantum}
+M. Schuld and N. Killoran, ``Quantum Machine Learning in Feature Hilbert 
+Spaces,'' \textit{Physical Review Letters}, vol. 122, no. 4, p. 040504, 2019.
+
+\bibitem{masci2011stacked}
+J. Masci, U. Meier, D. Cireşan, and J. Schmidhuber, ``Stacked 
+Convolutional Auto-Encoders for Hierarchical Feature Extraction,'' in 
+\textit{Proc. Int. Conf. Artificial Neural Networks (ICANN)}, 2011, 
+pp. 52--59.
+
+\bibitem{kingma2013auto}
+D. P. Kingma and M. Welling, ``Auto-Encoding Variational Bayes,'' 
+\textit{arXiv preprint arXiv:1312.6114}, 2013.
+
+\bibitem{mitarai2018quantum}
+K. Mitarai, M. Negoro, M. Kitagawa, and K. Fujii, ``Quantum circuit 
+learning,'' \textit{Physical Review A}, vol. 98, no. 3, p. 032309, 2018.
+
+\bibitem{peruzzo2014variational}
+A. Peruzzo, J. McClean, P. Shadbolt, M.-H. Yung, X.-Q. Zhou, P. J. Love, 
+A. Aspuru-Guzik, and J. L. O'Brien, ``A variational eigenvalue solver on 
+a photonic quantum processor,'' \textit{Nature Communications}, vol. 5, 
+p. 4213, 2014.
+
+\bibitem{lloyd2014quantum}
+S. Lloyd, M. Mohseni, and P. Rebentrost, ``Quantum principal component 
+analysis,'' \textit{Nature Physics}, vol. 10, pp. 631--633, 2014.
+
+\bibitem{cortes1995support}
+C. Cortes and V. Vapnik, ``Support-vector networks,'' \textit{Machine 
+Learning}, vol. 20, no. 3, pp. 273--297, 1995.
+
+\bibitem{lecun1998gradient}
+Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner, ``Gradient-based learning 
+applied to document recognition,'' \textit{Proceedings of the IEEE}, 
+vol. 86, no. 11, pp. 2278--2324, 1998.
+
+\bibitem{scholkopf2002learning}
+B. Schölkopf and A. J. Smola, \textit{Learning with Kernels: Support Vector 
+Machines, Regularization, Optimization, and Beyond}. Cambridge, MA: MIT 
+Press, 2002.
+
+\bibitem{farhi2014classification}
+E. Farhi and H. Neven, ``Classification with Quantum Neural Networks on 
+Near Term Processors,'' \textit{arXiv preprint arXiv:1802.06002}, 2018.
+
+\bibitem{grant2018initialization}
+E. Grant, L. Wossnig, M. Ostaszewski, and M. Benedetti, ``An initialization 
+strategy for addressing barren plateaus in parametrized quantum circuits,'' 
+\textit{Quantum}, vol. 3, p. 214, 2019.
+
+\bibitem{schuld2020circuit}
+M. Schuld, ``Circuit-Centric Quantum Classifiers,'' \textit{Physical Review 
+A}, vol. 101, no. 6, p. 062318, 2020.
+
+\end{thebibliography}
+
+\end{document}
