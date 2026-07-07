@@ -31,58 +31,43 @@ Este experimento implementa un pipeline híbrido clásico-cuántico que:
 
 1. El SVM clásico (100.00%) supera al QSVM (88.00%) en accuracy. Es esperable en régimen NISQ: pocos qubits (4) y muestras limitadas (100).
 2. El autoencoder convolucional comprime MNIST (784 px) a 64 dimensiones latentes con loss final de 0.008266.
-3. El pipeline híbrido es completamente viable en Google Colab. El cálculo de la matriz kernel (100x100) requiere ~31.6s.
+3. El pipeline híbrido es completamente viable en CPU. El cálculo de la matriz kernel (100x100) requiere ~31.6s.
 4. El análisis estadístico NO muestra diferencias significativas entre SVM clásico y QSVM.
 5. Limitaciones NISQ: kernel O(n²), solo 4 qubits, PCA al 56.95% de varianza explicada.
 6. Base sólida para tesis en QML aplicado a reconocimiento facial/biométrico.
 
-## Requisitos
-
-### Opción 1: Google Colab (recomendado)
-
-Abrir el notebook directamente en Colab y ejecutar todo. Las dependencias se instalan automáticamente al inicio:
-
-```python
-!pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-!pip install pennylane
-!pip install qiskit qiskit-machine-learning qiskit-aer
-!pip install scikit-learn matplotlib seaborn pandas numpy scipy
-!pip install umap-learn
-```
-
-Requiere **GPU** (T4 en adelante) para el entrenamiento del autoencoder.
-
-### Opción 2: Local (CPU/GPU)
+## Requisitos e Instalación
 
 **Python:** 3.10+
 
-**Dependencias principales:**
-
-| Paquete | Versión |
-|---------|---------|
-| torch | >= 2.0 |
-| torchvision | >= 0.15 |
-| pennylane | >= 0.35 |
-| qiskit | >= 1.0 |
-| qiskit-machine-learning | >= 0.7 |
-| qiskit-aer | >= 0.14 |
-| scikit-learn | >= 1.3 |
-| matplotlib | >= 3.7 |
-| seaborn | >= 0.12 |
-| pandas | >= 2.0 |
-| numpy | >= 1.24 |
-| scipy | >= 1.11 |
-| umap-learn | >= 0.5 |
-
-Instalación:
+Instalación de dependencias:
 
 ```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-pip install pennylane qiskit qiskit-machine-learning qiskit-aer
-pip install scikit-learn matplotlib seaborn pandas numpy scipy umap-learn
+pip install -r requirements_local.txt
 ```
 
-**Nota:** Para ejecución local sin GPU, cambiar `device` a `"cpu"` en la celda de configuración del notebook.
+Si no tienes GPU NVIDIA (solo CPU), instala PyTorch CPU primero:
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements_local.txt
+```
+
+## Ejecución
+
+### Opción 1: Notebook Jupyter
+
+```bash
+jupyter notebook hybrid_quantum_classical_qsvm_final.ipynb
+```
+
+### Opción 2: Script Python
+
+```bash
+python hybrid_quantum_classical_local.py
+```
+
+El script usa CPU automáticamente. Si hay una GPU NVIDIA disponible, usará CUDA sin cambios.
 
 ## Configuración del Experimento
 
@@ -91,16 +76,18 @@ pip install scikit-learn matplotlib seaborn pandas numpy scipy umap-learn
 - **Componentes PCA**: 4
 - **Qubits del kernel**: 4
 - **Muestras entrenamiento QSVM**: 100
-- **Framework cuántico**: PennyLane 0.45.0
-- **Framework clásico**: PyTorch 2.11.0+cu128
+- **Framework cuántico**: PennyLane
+- **Framework clásico**: PyTorch
 - **Seed**: 42
-- **Tiempo estimado**: ~15-20 minutos
+- **Tiempo estimado en CPU**: ~30-60 minutos
 
 ## Estructura del Repositorio
 
 ```
 FEATURE EXTRACTION + QSVM/
-├── hybrid_quantum_classical_qsvm_final.ipynb   # Notebook principal
+├── hybrid_quantum_classical_qsvm_final.ipynb   # Notebook principal (adaptado para CPU local)
+├── hybrid_quantum_classical_local.py            # Script Python standalone
+├── requirements_local.txt                       # Dependencias para Ubuntu/Linux
 ├── README.md                                    # Este archivo
 └── hybrid_qml_results/                          # Resultados del experimento
     ├── models/                                  # Modelos entrenados
@@ -125,6 +112,8 @@ FEATURE EXTRACTION + QSVM/
 
 ## Hardware Utilizado
 
-- GPU: Tesla T4
-- RAM: 13.61 GB
-- Plataforma: Linux 6.6.122+ (Google Colab)
+- CPU: AMD Ryzen 5 / Intel equivalente
+- RAM: 8 GB+ recomendado
+- Plataforma: Ubuntu/Linux (también funciona en Windows)
+
+*Nota: No requiere GPU. El cálculo del kernel cuántico usa el simulador `default.qubit` de PennyLane en CPU.*
